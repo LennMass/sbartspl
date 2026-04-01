@@ -14,7 +14,7 @@ err <- NULL
 cicoverage <- NULL
 ciwidth <- NULL
 
-for(j in 1:10){
+for(j in 1:length(simnum_vec)){
 	
 	simnum <- simnum_vec[j]
 

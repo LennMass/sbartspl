@@ -20,6 +20,7 @@ library(SoftBart)
 library(tidyverse)
 library(brms)
 library(XBCF)
+library(invgamma)
 
 
 # source self-written functions

@@ -11,8 +11,8 @@
 simnum_vec <- seq(1237, 1248, 1) # seed
 
 # parameters
-N = 500 # 500 and 2000 used in paper
-ncovs = 10 # 10, 25 and 50 used in paper
+N = 2000 # 500 and 2000 used in paper
+ncovs = 50 # 10, 25 and 50 used in paper
 reps=10
 
 
@@ -20,6 +20,7 @@ reps=10
 ####
 # Start simulation loop over seeds----
 ####
+
 
 for(j in 1:length(simnum_vec)){
 	
@@ -42,8 +43,8 @@ for(j in 1:length(simnum_vec)){
 	
 	ciwidth_res <- matrix(NA, nrow = reps,  ncol=length(method_names))
 	colnames(ciwidth_res) <- method_names
-
-
+	
+	
 	####
 	# Start simulation loop for 10 sets per seed----
 	####
@@ -85,98 +86,98 @@ for(j in 1:length(simnum_vec)){
 		####
 		## untrimmed BART ----
 		####
-
-
+		
+		
 		utrim_bartfit<-bartalone(xtr=test2[,2:ncol(test2)],
 														 ytr=test2$Yobs,
 														 xte=test3[,2:ncol(test2)])
-
+		
 		ubart <- list(ace_pd = utrim_bartfit$ace_pd,
 									ate = utrim_bartfit$ace_pd %>% mean(),
 									atel = utrim_bartfit$ace_pd %>% quantile(0.025),
 									ateu = utrim_bartfit$ace_pd %>% quantile(0.975))
-
+		
 		err_res[i, "UBART"] <- ubart$ate - simdat$ate_true
 		cicoverage_res[i, "UBART"] <- ifelse( (ubart$atel <= simdat$ate_true) && (ubart$ateu >= simdat$ate_true), 1, 0)
 		ciwidth_res[i, "UBART"] <- ubart$ateu - ubart$atel
-
-
-
+		
+		
+		
 		####
 		## untrimmed SoftBART ----
 		####
-
-
+		
+		
 		utrim_softbartfit<-softbartalone(xtr=test2[,2:ncol(test2)],
 																		 ytr=test2$Yobs,
 																		 xte=test3[,2:ncol(test2)])
-
+		
 		usoftbart <- list(ace_pd = utrim_softbartfit$ace_pd,
 											ate= utrim_softbartfit$ace_pd %>% mean(),
 											atel = utrim_softbartfit$ace_pd %>% quantile(0.025),
 											ateu = utrim_softbartfit$ace_pd %>% quantile(0.975))
-
+		
 		err_res[i, "USBART"] <- usoftbart$ate - simdat$ate_true
 		cicoverage_res[i, "USBART"] <- ifelse( (usoftbart$atel <= simdat$ate_true) && (usoftbart$ateu >= simdat$ate_true), 1, 0)
 		ciwidth_res[i, "USBART"] <- usoftbart$ateu - usoftbart$atel
-
+		
 		####
 		## trimmed BART ----
 		####
-
-
+		
+		
 		trim_bartfit<-bartalone(xtr=test2[which(RO==1), 2:ncol(test2)],
 														ytr=test2$Yobs[which(RO==1)],
 														xte=test3[which(RO==1), 2:ncol(test2)])
-
+		
 		tbart <- list(ace_pd = trim_bartfit$ace_pd,
 									ate = trim_bartfit$ace_pd %>% mean(),
 									atel = trim_bartfit$ace_pd %>% quantile(0.025),
 									ateu = trim_bartfit$ace_pd %>% quantile(0.975))
-
+		
 		err_res[i, "TBART"] <- tbart$ate - simdat$ate_true
 		cicoverage_res[i, "TBART"] <- ifelse( (tbart$atel <= simdat$ate_true) && (tbart$ateu >= simdat$ate_true), 1, 0)
 		ciwidth_res[i, "TBART"] <- tbart$ateu - tbart$atel
-
-
+		
+		
 		####
 		## trimmed SoftBART ----
 		####
-
-
+		
+		
 		trim_softbartfit<-softbartalone(xtr=test2[which(RO==1), 2:ncol(test2)],
 																		ytr=test2$Yobs[which(RO==1)],
 																		xte=test3[which(RO==1), 2:ncol(test2)])
-
+		
 		tsoftbart <- list(ace_pd = trim_softbartfit$ace_pd,
 											ate = trim_softbartfit$ace_pd %>% mean(),
 											atel = trim_softbartfit$ace_pd %>% quantile(0.025),
 											ateu = trim_softbartfit$ace_pd %>% quantile(0.975))
-
+		
 		err_res[i, "TSBART"] <- tsoftbart$ate - simdat$ate_true
 		cicoverage_res[i, "TSBART"] <- ifelse( (tsoftbart$atel <= simdat$ate_true) && (tsoftbart$ateu >= simdat$ate_true), 1, 0)
 		ciwidth_res[i, "TSBART"] <- tsoftbart$ateu - tsoftbart$atel
-
-
+		
+		
 		####
 		## BART+SPL ----
 		####
-
+		
 		bartspl_model <-bartspl(datall=test2,RO=RO)
-
+		
 		bartspl.fit <- list(ace_pd = bartspl_model$ace_pd,
 												ate = bartspl_model$ace_pd %>% mean(),
 												atel = bartspl_model$ace_pd %>% quantile(0.025),
 												ateu = bartspl_model$ace_pd %>% quantile(0.975))
-
+		
 		err_res[i, "BARTSPL"] <- bartspl.fit$ate - simdat$ate_true
 		cicoverage_res[i, "BARTSPL"] <- ifelse( (bartspl.fit$atel <= simdat$ate_true) && (bartspl.fit$ateu >= simdat$ate_true), 1, 0)
 		ciwidth_res[i, "BARTSPL"] <- bartspl.fit$ateu - bartspl.fit$atel
-
+		
 		####
 		## SBART+SPL ----
 		####
-
+		
 		sbartspl_model<-bartspl(datall=test2,
 														RO=RO,
 														nburn = 2500,
@@ -185,61 +186,61 @@ for(j in 1:length(simnum_vec)){
 														softbart_sampler = TRUE,
 														probs.rcs.ps=c(.25,.5,0.75),
 														probs.rcs.Y=c(.25,.5,0.75))
-
+		
 		sbartspl.fit <- list(ace_pd = sbartspl_model$ace_pd,
 												 ate = sbartspl_model$ace_pd %>% mean(),
 												 atel = sbartspl_model$ace_pd %>% quantile(0.025),
 												 ateu = sbartspl_model$ace_pd %>% quantile(0.975))
-
+		
 		err_res[i, "SBARTSPL"] <- sbartspl.fit$ate - simdat$ate_true
 		cicoverage_res[i, "SBARTSPL"] <- ifelse( (sbartspl.fit$atel <= simdat$ate_true) && (sbartspl.fit$ateu >= simdat$ate_true), 1, 0)
 		ciwidth_res[i, "SBARTSPL"] <- sbartspl.fit$ateu - sbartspl.fit$atel
-
+		
 		####
 		## trimmed GR ----
 		####
-
+		
 		ce_tgr_cor<-gr(Y=test2$Yobs[which(RO==1)],
 									 trt=test2$x[which(RO==1)],
 									 ps=test2$ps_mis[which(RO==1)],
 									 X=test2[which(RO==1),4:ncol(test2)],
 									 M=500,qps=quantile(test2$ps_mis[which(RO==1)],probs=c(0,.3,.4,.5,.6,.7,1),na.rm=T))
-
+		
 		tgr <-list(ace_pd = ce_tgr_cor$ace,
 							 ate = ce_tgr_cor$ace %>% mean(),
 							 atel = ce_tgr_cor$ace %>% quantile(0.025),
 							 ateu = ce_tgr_cor$ace %>% quantile(0.975))
-
+		
 		err_res[i, "TGR"] <- tgr$ate - simdat$ate_true
 		cicoverage_res[i, "TGR"] <- ifelse( (tgr$atel <= simdat$ate_true) && (tgr$ateu >= simdat$ate_true), 1, 0)
 		ciwidth_res[i, "TGR"] <- tgr$ateu - tgr$atel
-
-
-
+		
+		
+		
 		####
 		## untrimmed GR ----
 		####
-
+		
 		ugr_fit <-gr(Y=test2$Yobs,
 								 trt=test2$x,
 								 ps=test2$ps_mis,
 								 X=test2[,4:ncol(test2)],
 								 M=500,qps=quantile(test2$ps_mis,probs=c(0,.3,.4,.5,.6,.7,1),na.rm=T))
-
+		
 		ugr <- list(ace_pd = ugr_fit$ace %>% as.vector(),
 								ate= ugr_fit$ace %>%  mean(),
 								atel = ugr_fit$ace %>% quantile(.025),
 								ateu = ugr_fit$ace %>% quantile(.975)
 		)
-
+		
 		err_res[i, "UGR"] <- ugr$ate - simdat$ate_true
 		cicoverage_res[i, "UGR"] <- ifelse( (ugr$atel <= simdat$ate_true) && (ugr$ateu >= simdat$ate_true), 1, 0)
 		ciwidth_res[i, "UGR"] <- ugr$ateu - ugr$atel
-
+		
 		####
 		## XBCF ----
 		####
-
+		
 		xbcf.model <- XBCF::XBCF(y=test2$Yobs,
 														 z=test2$x,
 														 x_con=as.matrix(test2[,4:ncol(test2)]),
@@ -254,13 +255,13 @@ for(j in 1:length(simnum_vec)){
 								 ate = xbcf.ace_pd %>% mean(),
 								 atel = xbcf.ace_pd %>% quantile(0.025),
 								 ateu = xbcf.ace_pd %>% quantile(0.975))
-
-
+		
+		
 		err_res[i, "XBCF"] <- xbcf$ate - simdat$ate_true
 		cicoverage_res[i, "XBCF"] <- ifelse( (xbcf$atel <= simdat$ate_true) && (xbcf$ateu >= simdat$ate_true), 1, 0)
 		ciwidth_res[i, "XBCF"] <- xbcf$ateu - xbcf$atel
-
-
+		
+		
 		####
 		## Bayesian Linear Regression (BLR) ----
 		####
@@ -359,3 +360,4 @@ for(j in 1:length(simnum_vec)){
 	
 	
 } # end of loop over seeds
+
