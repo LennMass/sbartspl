@@ -2,35 +2,6 @@
 # Leukemia and NG compressor station analysis ----
 ####
 
-# load packages
-library(Hmisc)
-library(MASS)
-library(stats)
-library(splines)
-library(MCMCpack)
-library(BayesTree)
-library(dbarts)
-library(sf) # alternative for rgdal-package, as this is depreciated. We use sf::read_f() instead of rgdal::readOGR().
-library(xtable)
-library(SoftBart) 
-library(tidyverse) 
-
-# Load helper functions
-source('01_code/00_functions/01_helper/pw_overlap.R')
-source('01_code/00_functions/01_helper/aceBB.R')
-source('01_code/00_functions/01_helper/normalize.R')
-
-# Load self-written methods
-source('01_code/00_functions/02_methods/bartspl_appl.R')
-source('01_code/00_functions/02_methods/bartspl.R')
-source('01_code/00_functions/02_methods/bartalone.R')
-source('01_code/00_functions/02_methods/softbartalone.R')
-source('01_code/00_functions/02_methods/gr.R')
-
-
-
-
-
 
 ####
 # outcome: leukemia mortality rate ----
@@ -127,7 +98,7 @@ bartspl.fit <- list(ace_pd = bartspl_model$ace_pd,
 sbartspl_model<-bartspl(datall=test2[,c(2,ncol(test2)-1,ncol(test2),3:(ncol(test2)-2))],
 												RO=RO,
 												nburn = 2500,
-												nsamp = 5000,
+												nsamp = 1250,
 												bart_model = "sbart",
 												softbart_sampler = TRUE, 
 												probs.rcs.ps=c(.25,.5,0.75), 
@@ -194,7 +165,7 @@ xbcf <- list(ace_pd = xbcf.ace_pd,
 
 
 ####
-## GAM, untrimmed ----
+## Bayesian Linear Regression  ----
 ####
 
 # standardize covariate variables and outcome
@@ -204,22 +175,31 @@ test2_scale[cont_vars] <- scale(test2[cont_vars])
 test2_scale$out <- scale(test2$out)
 
 
-form <- brms::bf(
+form_gam <- brms::bf(
 	paste("out ~ expose",
 				paste(sprintf("s(%s, k = 3)", cont_vars), collapse = " + "),
 				sep = " + "))
 
-ugam_fit <- fit <- brms::brm(
-	form,
+
+priors_gam <- c(
+	brms::prior(normal(0, 1.5), class = "b", coef = "expose"),
+	brms::prior(normal(0, 1), class = "b"),
+	brms::prior(student_t(3, 0, 2.5), class = "sigma")
+)
+
+
+fit_ugam <- brms::brm(
+	form_gam,
 	data = test2_scale,
-	chains = 4,
-	cores = 4, 
-	control = list(adapt_delta = 0.995)
-	)
+	prior = priors_gam,
+	chains = 2,
+	iter = 2000,
+	control = list(adapt_delta = 0.9)
+)
 
 
-ugam_m1 <- brms::posterior_epred(ugam_fit, newdata = transform(test2_scale, expose = 1))
-ugam_m0 <- brms::posterior_epred(ugam_fit, newdata = transform(test2_scale, expose = 0))
+ugam_m1 <- brms::posterior_epred(fit_ugam, newdata = transform(test2_scale, expose = 1))
+ugam_m0 <- brms::posterior_epred(fit_ugam, newdata = transform(test2_scale, expose = 0))
 
 # ATE posterior draws, back-transformed on original scale
 ugam_ATE_post <- rowMeans(ugam_m1 - ugam_m0) * attr(test2_scale$out, "scaled:scale")
@@ -231,31 +211,6 @@ ugam <- list(ace_pd=ugam_ATE_post,
 
 
 ####
-## GAM, trimmed ----
-####
-
-
-tgam_fit <- fit <- brms::brm(
-	form,
-	data = test2_scale[which(RO==1),],
-	chains = 4,
-	cores = 4, 
-	control = list(adapt_delta = 0.995)
-)
-
-
-tgam_m1 <- brms::posterior_epred(tgam_fit, newdata = transform(test2_scale[which(RO==1),], expose = 1))
-tgam_m0 <- brms::posterior_epred(tgam_fit, newdata = transform(test2_scale[which(RO==1),], expose = 0))
-
-# ATE posterior draws, back-transformed on original scale
-tgam_ATE_post <- rowMeans(tgam_m1 - tgam_m0) * attr(test2_scale$out, "scaled:scale")
-tgam <- list(ace_pd=tgam_ATE_post, 
-						 ate= tgam_ATE_post %>% mean(), 
-						 atel = tgam_ATE_post %>% quantile(0.025),
-						 ateu = tgam_ATE_post %>% quantile(0.975))
-
-
-####
 ## Save results ----
 ####
 
@@ -263,16 +218,15 @@ results_tab<-rbind(results_tab,
 									 c(ugr$ate, ugr$atel, ugr$ateu, ugr$ateu - ugr$atel),
 									 c(ubart$ate, ubart$atel, ubart$ateu, ubart$ateu - ubart$atel),
 									 c(usoftbart$ate, usoftbart$atel, usoftbart$ateu, usoftbart$ateu - usoftbart$atel),
-									 c(ugam$ate, ugam$atel, ugam$ateu, ugam$ateu - ugam$atel),
+									 c(tgr$ate,tgr$atel, tgr$ateu, tgr$ateu - tgr$atel),
 									 c(tbart$ate, tbart$atel, tbart$ateu, tbart$ateu - tbart$atel),
 									 c(tsoftbart$ate, tsoftbart$atel, tsoftbart$ateu, tsoftbart$ateu - tsoftbart$atel),
-									 c(tgr$ate,tgr$atel, tgr$ateu, tgr$ateu - tgr$atel),
-									 c(tgam$ate, tgam$atel, tgam$ateu, tgam$ateu - tgam$atel),
 									 c(xbcf$ate, xbcf$atel, xbcf$ateu, xbcf$ateu - xbcf$atel),
+									 c(ugam$ate, ugam$atel, ugam$ateu, ugam$ateu - ugam$atel),
 									 c(bartspl.fit$ate, bartspl.fit$atel, bartspl.fit$ateu, bartspl.fit$ateu - bartspl.fit$atel),
 									 c(sbartspl.fit$ate, sbartspl.fit$atel, sbartspl.fit$ateu, sbartspl.fit$ateu - sbartspl.fit$atel)
 )
-methods <- c("UGR", "UBART", "USBART", "UGAM", "TGR", "TBART", "TSBART", "TGAM", "XBCF", "BARTSPL", "SBARTSPL")
+methods <- c("UGR", "UBART", "USBART", "TGR", "TBART", "TSBART", "XBCF", "BLR", "BARTSPL", "SBARTSPL")
 colnames(results_tab) <- c( "mean", "lower", "upper", "width")
 results_tab <- data.frame(round(results_tab, digits=3))
 results_tab <- cbind(method=methods, results_tab)
@@ -296,7 +250,7 @@ results_tab<-NULL
 test2 <- readRDS("00_data/02_application/02_preprocess/leukemia_change.rds")
 
 # Identify the RO and RN 
-RO<-pw_overlap(ps=bartps,E=test2$expose,a=.1*(max(bartps)-min(bartps)),b=10)
+RO<-pw_overlap(ps=test2$ps,E=test2$expose,a=.1*(max(test2$ps)-min(test2$ps)),b=10)
 
 ####
 # Estimate effect of exposure on CHANGE in leukemia mortality rates ----
@@ -378,7 +332,7 @@ bartspl.fit <- list(ace_pd = bartspl_model$ace_pd,
 sbartspl_model<-bartspl(datall=test2[,c(2,ncol(test2)-1,ncol(test2),3:(ncol(test2)-2))],
 												RO=RO,
 												nburn = 2500,
-												nsamp = 5000,
+												nsamp = 1250,
 												bart_model = "sbart",
 												softbart_sampler = TRUE, 
 												probs.rcs.ps=c(.25,.5,0.75), 
@@ -455,22 +409,31 @@ test2_scale[cont_vars] <- scale(test2[cont_vars])
 test2_scale$out <- scale(test2$out)
 
 
-form <- brms::bf(
+form_gam <- brms::bf(
 	paste("out ~ expose",
 				paste(sprintf("s(%s, k = 3)", cont_vars), collapse = " + "),
 				sep = " + "))
 
-ugam_fit <- fit <- brms::brm(
-	form,
-	data = test2_scale,
-	chains = 4,
-	cores = 4, 
-	control = list(adapt_delta = 0.995)
+
+priors_gam <- c(
+	brms::prior(normal(0, 1.5), class = "b", coef = "expose"),
+	brms::prior(normal(0, 1), class = "b"),
+	brms::prior(student_t(3, 0, 2.5), class = "sigma")
 )
 
 
-ugam_m1 <- brms::posterior_epred(ugam_fit, newdata = transform(test2_scale, expose = 1))
-ugam_m0 <- brms::posterior_epred(ugam_fit, newdata = transform(test2_scale, expose = 0))
+fit_ugam <- brms::brm(
+	form_gam,
+	data = test2_scale,
+	prior = priors_gam,
+	chains = 2,
+	iter = 2000,
+	control = list(adapt_delta = 0.9)
+)
+
+
+ugam_m1 <- brms::posterior_epred(fit_ugam, newdata = transform(test2_scale, expose = 1))
+ugam_m0 <- brms::posterior_epred(fit_ugam, newdata = transform(test2_scale, expose = 0))
 
 # ATE posterior draws, back-transformed on original scale
 ugam_ATE_post <- rowMeans(ugam_m1 - ugam_m0) * attr(test2_scale$out, "scaled:scale")
@@ -480,32 +443,6 @@ ugam <- list(ace_pd=ugam_ATE_post,
 						 ateu = ugam_ATE_post %>% quantile(0.975) 
 )
 
-
-####
-## GAM, trimmed ----
-####
-
-
-tgam_fit <- fit <- brms::brm(
-	form,
-	data = test2_scale[which(RO==1),],
-	chains = 4,
-	cores = 4, 
-	control = list(adapt_delta = 0.995)
-)
-
-
-tgam_m1 <- brms::posterior_epred(tgam_fit, newdata = transform(test2_scale[which(RO==1),], expose = 1))
-tgam_m0 <- brms::posterior_epred(tgam_fit, newdata = transform(test2_scale[which(RO==1),], expose = 0))
-
-# ATE posterior draws, back-transformed on original scale
-tgam_ATE_post <- rowMeans(tgam_m1 - tgam_m0) * attr(test2_scale$out, "scaled:scale")
-tgam <- list(ace_pd=tgam_ATE_post, 
-						 ate= tgam_ATE_post %>% mean(), 
-						 atel = tgam_ATE_post %>% quantile(0.025),
-						 ateu = tgam_ATE_post %>% quantile(0.975))
-
-
 ####
 ## Save results ----
 ####
@@ -514,16 +451,15 @@ results_tab<-rbind(results_tab,
 									 c(ugr$ate, ugr$atel, ugr$ateu, ugr$ateu - ugr$atel),
 									 c(ubart$ate, ubart$atel, ubart$ateu, ubart$ateu - ubart$atel),
 									 c(usoftbart$ate, usoftbart$atel, usoftbart$ateu, usoftbart$ateu - usoftbart$atel),
-									 c(ugam$ate, ugam$atel, ugam$ateu, ugam$ateu - ugam$atel),
+									 c(tgr$ate,tgr$atel, tgr$ateu, tgr$ateu - tgr$atel),
 									 c(tbart$ate, tbart$atel, tbart$ateu, tbart$ateu - tbart$atel),
 									 c(tsoftbart$ate, tsoftbart$atel, tsoftbart$ateu, tsoftbart$ateu - tsoftbart$atel),
-									 c(tgr$ate,tgr$atel, tgr$ateu, tgr$ateu - tgr$atel),
-									 c(tgam$ate, tgam$atel, tgam$ateu, tgam$ateu - tgam$atel),
 									 c(xbcf$ate, xbcf$atel, xbcf$ateu, xbcf$ateu - xbcf$atel),
+									 c(ugam$ate, ugam$atel, ugam$ateu, ugam$ateu - ugam$atel),
 									 c(bartspl.fit$ate, bartspl.fit$atel, bartspl.fit$ateu, bartspl.fit$ateu - bartspl.fit$atel),
 									 c(sbartspl.fit$ate, sbartspl.fit$atel, sbartspl.fit$ateu, sbartspl.fit$ateu - sbartspl.fit$atel)
 )
-methods <- c("UGR", "UBART", "USBART", "UGAM", "TGR", "TBART", "TSBART", "TGAM", "XBCF", "BARTSPL", "SBARTSPL")
+methods <- c("UGR", "UBART", "USBART", "TGR", "TBART", "TSBART", "XBCF", "BLR", "BARTSPL", "SBARTSPL")
 colnames(results_tab) <- c( "mean", "lower", "upper", "width")
 results_tab <- data.frame(round(results_tab, digits=3))
 results_tab <- cbind(method=methods, results_tab)
