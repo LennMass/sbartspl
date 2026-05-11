@@ -1,16 +1,18 @@
+# This function extends BART+SPL of Nethery et al. (2019) and allows usage of SBART+SPL of Maßmann (2026)
+
 bartspl<-function(datall,RO,
-                  nburn=10000, # normally 10000
-                  nsamp=5000, 
+                  nburn=10000, # burn-in MCMCs
+                  nsamp=5000, # sampled MCMCs
                   bart_model="dbarts", # choose from: "dbarts", "sbart", "dart", "smooth_bart
                   softbart_sampler=FALSE, # choose TRUE if bart_model =  "sbart" or "dart" or "smooth_bart"
-                  n_forest=4,
+                  n_forest=4, # number of separate chains
                   var_infl = 0, # no variance inflation in sbart and dart
                   tau_rate_dart=1000000000000000000, # to make SoftBART to DART, bandwidth tau -> 0
-									probs.rcs.ps=c(.1,.25,.5,.75,.9), # for prop.score. default as in Nethery: c(.1,.25,.5,.75,.9) - 5 knots
-									probs.rcs.Y=c(.2,.4,.6,.8) # for Y1 and Y0. default as in nethery: c(.1,.25,.5,.75,.9) - 4 knots
+									probs.rcs.ps=c(.1,.25,.5,.75,.9), # for prop.score. default as in Nethery et al. (2019): c(.1,.25,.5,.75,.9) - 5 knots
+									probs.rcs.Y=c(.2,.4,.6,.8) # for Y1 and Y0. default as in Nethery et al. (2019): c(.1,.25,.5,.75,.9) - 4 knots
                   ){
   
-  ## this function implements BART+SPL method (for continuous outcomes)
+  ## this function implements BART+SPL and SBART+SPL method (for continuous outcomes)
   ## first column in datall should be the observed outcome variable
   ## second column should be the binary exposure indicator
   ## third variable should be the PS or confounder on which to base the non-overlap
@@ -145,12 +147,9 @@ bartspl<-function(datall,RO,
   sigma_spl0<-1
   
   ## matrices to store posterior samples ##
-  # delta_save<-matrix(NA,nrow=nsamp,ncol=nrow(datov))
   delta_star_save<-matrix(NA,nrow=nsamp,ncol=nrow(datall))
   delta_star_burn<-matrix(NA,nrow=nburn,ncol=nrow(datall))
-  # sigma_bart_save<-rep(NA,nsamp)
-  # beta_save<-matrix(NA,nrow=nsamp,ncol=p_spl)
-  # sigma_spl_save<-rep(NA,nsamp)
+  
   
   # for softbart_sampler
   if(softbart_sampler==T){
@@ -166,14 +165,13 @@ bartspl<-function(datall,RO,
     ##### 1. run the dbarts sampler once and take a sample from the BART ppd ####
 
     if(softbart_sampler==FALSE){
-      temp<-dbfit$run(numBurnIn=0,numSamples=1) # step (1a) in supp. mat.
-      ppd_test<-rnorm(n=length(temp$test),mean=temp$test,sd=temp$sigma) # step (1b) in supp. mat.
+      temp<-dbfit$run(numBurnIn=0,numSamples=1)  
+      ppd_test<-rnorm(n=length(temp$test),mean=temp$test,sd=temp$sigma) 
     }else if(softbart_sampler==TRUE){
       # for softbart_sampler
     	# chain 1
       s_temp_test[,1]<- sb_chain1$do_gibbs(X=data.matrix(datov_scale[, !(colnames(datov_scale) == "Yobs")]), 
                                                     Y=data.matrix(datov_scale$Yobs),
-                                                    #X_test=data.matrix(datov[, !(colnames(datov) == "Yobs")]),
                                                     X_test=data.matrix(datovtest_scale[,!(colnames(datovtest_scale) == "Yobs")]), 
                                                     i=1) %>%
           t()
@@ -181,7 +179,6 @@ bartspl<-function(datall,RO,
       # chain 2
       s_temp_test[,2]<- sb_chain2$do_gibbs(X=data.matrix(datov_scale[, !(colnames(datov_scale) == "Yobs")]), 
       																		 Y=data.matrix(datov_scale$Yobs),
-      																		 #X_test=data.matrix(datov[, !(colnames(datov) == "Yobs")]),
       																		 X_test=data.matrix(datovtest_scale[,!(colnames(datovtest_scale) == "Yobs")]), 
       																		 i=1) %>%
       	t()
@@ -189,7 +186,6 @@ bartspl<-function(datall,RO,
       # chain 3
       s_temp_test[,3]<- sb_chain3$do_gibbs(X=data.matrix(datov_scale[, !(colnames(datov_scale) == "Yobs")]), 
       																		 Y=data.matrix(datov_scale$Yobs),
-      																		 #X_test=data.matrix(datov[, !(colnames(datov) == "Yobs")]),
       																		 X_test=data.matrix(datovtest_scale[,!(colnames(datovtest_scale) == "Yobs")]), 
       																		 i=1) %>%
       	t()
@@ -197,7 +193,6 @@ bartspl<-function(datall,RO,
       # chain 4
       s_temp_test[,4]<- sb_chain4$do_gibbs(X=data.matrix(datov_scale[, !(colnames(datov_scale) == "Yobs")]), 
       																		 Y=data.matrix(datov_scale$Yobs),
-      																		 #X_test=data.matrix(datov[, !(colnames(datov) == "Yobs")]),
       																		 X_test=data.matrix(datovtest_scale[,!(colnames(datovtest_scale) == "Yobs")]), 
       																		 i=1) %>%
       	t()
@@ -218,7 +213,7 @@ bartspl<-function(datall,RO,
     delta[which(datov$x==0),]<-ppd_test[which(datov$x==0)]-datov$Yobs[which(datov$x==0)]
     delta_sp<-delta[sp_ind,]
     
-    ###### update Y1s #### step (3) of supp. mat. ####
+    ###### update Y1s #### 
     if(softbart_sampler==F){
       foosp<-temp$test[sp_ind]
     }else if(softbart_sampler==T){
@@ -252,12 +247,12 @@ bartspl<-function(datall,RO,
         X_spl<-as.matrix(cbind(1,bs_ps,bs_y1s,datov_sp[,4:ncol(datov_sp)]))
       }
       
-      ###### sample the betas ## step (5) of supp. mat. ####
+      ###### sample the betas ## 
       Vbeta<-solve(Sigma0_inv+((1/sigma_spl1)*t(X_spl)%*%X_spl))
       Ebeta<-Vbeta%*%(Sigma0_inv%*%mu0+((1/sigma_spl1)*t(X_spl)%*%delta_sp))
       beta1<-matrix(MASS::mvrnorm(n=1,mu=Ebeta,Sigma=Vbeta),nrow=p_spl1,ncol=1)
       
-      ###### sample the sigma_spls ## step (6) of supp. mat. ####
+      ###### sample the sigma_spls ## 
       a<-a0+(nrow(datov_sp)/2)
       b<-b0+((1/2)*sum((delta_sp-(X_spl%*%beta1))^2))
       sigma_spl1<-invgamma::rinvgamma(n=1,shape=a,scale=b)
