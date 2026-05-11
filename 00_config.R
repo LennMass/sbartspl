@@ -8,8 +8,8 @@ if (!requireNamespace("pacman", quietly = TRUE)) {
 	install.packages("pacman", repos = "https://cloud.r-project.org")
 }
 
-# ---- CRAN packages used in the application ----
-# Note: {sf} replaces the deprecated {rgdal}. Use sf::st_read() instead of
+# ---- CRAN packages  ----
+# Note: {sf} replaces the deprecated {rgdal} in Nethery et al. (2019). We use sf::st_read() instead of
 # rgdal::readOGR(). {stats} and {splines} ship with base R, no install needed.
 pacman::p_load(
 	here,        # project-relative file paths
