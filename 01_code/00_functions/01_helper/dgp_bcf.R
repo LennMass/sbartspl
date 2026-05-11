@@ -1,13 +1,49 @@
+# Data-Generating Process for Simulations based on Wang et al. (2024)
+# -------------------------------------------
+# Simulates one dataset in the style of Hahn, Murray & Carvalho's Bayesian
+# Causal Forest setup and Wang et al. (2024), with configurable treatment-effect heterogeneity,
+# noise dimensions, and overlap. Continuous and categorical covariates are
+# generated, the propensity score is a non-linear function of a subset of
+# them, and the function repeatedly draws datasets until (i) the overlap
+# share falls in [0.70, 0.90] and (ii) a Gelman-Rubin-style check `gr()`
+# flags the draw as usable, or until `max_iter` is reached.
+#
+# Args:
+#   n            : sample size (default 500)
+#   a, b         : parameters passed to pw_overlap() defining the
+#                  overlap region (defaults 0.1, 7)
+#   kappa        : noise level; sigma = kappa * sd(rho * f(x,z)) (default 0.5)
+#   rho          : scaling of the treatment-effect contribution to the
+#                  outcome (default 1)
+#   tau_setting  : "homogeneous" (tau == 3) or "heterogeneous"
+#                  (tau depends on x[,2] and a categorical covariate)
+#   p_cont_noise : number of continuous noise covariates beyond the 3 true
+#                  continuous vars (default 10)
+#   p_cat_noise  : number of categorical noise covariates beyond the 2 true
+#                  categorical vars (default 10)
+#
+# Depends on the project-internal helpers pw_overlap() and gr(), and on
+# nnet::nnet() for propensity score estimation.
+#
+# Returns a list with:
+#   untrimmed_dat : data.frame with y, z, ps, and all covariates
+#   trimmed_dat   : same, restricted to the overlap region (RO == 1)
+#   ate_true      : true population ATE, mean(tau(x))
+#   RO            : 0/1 indicator of membership in the overlap region
+#   RO_share      : share of units in the overlap region
+#   p_cont_noise  : number of continuous noise covariates (== p_cont_noise)
+#   p_cat_noise   : number of categorical noise covariates (== p_cat_noise)
 
 
-dgp_bcf <-function(n = 500, # sample size
-									 a = 0.1, # a parameter in non-overlap definition#
-									 b = 7, # b parameter in non-overlap definition#
+
+dgp_bcf <-function(n = 500, 
+									 a = 0.1, 
+									 b = 7, 
 									 kappa = 0.5,
 									 rho = 1,
 									 tau_setting="homogeneous", 
-									 p_cont_noise = 10, # 10, 20
-									 p_cat_noise = 10 # 10, 20
+									 p_cont_noise = 10, 
+									 p_cat_noise = 10 
 									 ){
 	
 	g <- function(x) {

@@ -1,8 +1,41 @@
+# Data-Generating Process for Simulations based on Nethery et al. (2019)
+# ------------------------------------------------
+# Simulates one dataset based on Nethery et al. (2019). 
+# Ten "true" confounders are always included; additional
+# noise covariates can be added via `ncovs`. The function repeatedly draws
+# datasets until (i) the overlap region excludes at least one unit and
+# (ii) the Gelman-Rubin-style check `gr()` flags the draw as usable, or
+# until `max_iter` is reached.
+#
+# Args:
+#   N      : total sample size, split 50/50 across treatment arms (default 500)
+#   ncovs  : number of extra noise covariates beyond the 10 true confounders
+#            (default 25; set to 0 for the low-dimensional case)
+#   a_0    : lower bound parameter passed to pw_overlap() defining the
+#            overlap region (default 0.1)
+#   b_0    : count parameter passed to pw_overlap() defining the overlap
+#            region (default 7)
+#
+# Depends on the project-internal helpers pw_overlap() and gr().
+#
+# Returns a list with:
+#   untrimmed_dat : data.frame with Yobs, x, ps_mis, and all covariates
+#   trimmed_dat   : same, restricted to the overlap region (RO == 1)
+#   covs          : matrix of covariates (10 true + ncovs noise)
+#   X_untrim      : x, ps_mis, covs as a data.frame
+#   X_trim        : X_untrim restricted to the overlap region
+#   ate_true      : true population ATE, mean(Y1 - Y0)
+#   ite_true      : vector of true individual treatment effects
+#   RO            : 0/1 indicator of membership in the overlap region
+#   RO_share      : share of units in the overlap region
+#   p_noise       : number of noise covariates (== ncovs)
 
-dgp_bartspl <- function(N = 500, #as.numeric(args[4]) #total N#
-												ncovs = 25, #-as.numeric(args[5]) #number of additional "potential confounders"#
-												a_0 = .1,  # range of the overlap set
-												b_0 = 7 # points in the overlap set
+
+
+dgp_bartspl <- function(N = 500, 
+												ncovs = 25, 
+												a_0 = .1,  
+												b_0 = 7 
 												){
 	
 	n1<-N/2

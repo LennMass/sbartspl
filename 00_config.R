@@ -25,7 +25,8 @@ pacman::p_load(
 	SoftBart,    # Soft BART
 	tidyverse,   # data wrangling + ggplot2
 	brms,        # Bayesian regression via Stan
-	invgamma     # inverse-gamma distribution
+	invgamma,    # inverse-gamma distribution
+	nnet.        # single-hidden-layer neural network
 )
 
 # ---- GitHub-only packages ----
