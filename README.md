@@ -3,7 +3,9 @@
 This repository contains code for the project:
 
 **"Estimating PATE under positivity violations: SBART+SPL for
-high-dimensional covariates"**.
+high-dimensional covariates"**
+
+CLeaR 2026, forthcoming in the [Proceedings of Machine Learning Research 323](https://openreview.net/pdf?id=v6gn5xdbu3).
 
 ---
 
