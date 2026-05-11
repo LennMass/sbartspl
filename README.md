@@ -1,6 +1,6 @@
 # SBART+SPL for PATE
 
-This repository contains replicaton code for the project:
+This repository contains replicaton code for the paper:
 
 **"Estimating PATE under positivity violations: SBART+SPL for
 high-dimensional covariates"**
@@ -93,6 +93,15 @@ source("0_config.R")
 - Results for the simulations and empirical application
 
 ---
+
+## Code Attribution
+
+This implementation extends the BART+SPL method from:
+> Nethery, R. C., Mealli, F., & Dominici, F. (2019). 
+> Estimating population average causal effects in the presence of 
+> non-overlap. *Annals of Applied Statistics*, 13(2), 1242-1267.
+>
+> Code of the original BART+SPL approach can be found [here](https://github.com/rachelnethery/overlap). If you use this code, please cite them as well.
 
 
 
