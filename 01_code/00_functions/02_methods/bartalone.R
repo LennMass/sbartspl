@@ -1,3 +1,24 @@
+# BART-Alone Baseline for the Average Causal Effect
+# -------------------------------------------------
+# Plain BART (no spline extrapolation) used as a baseline against the
+# BART+SPL / SBART+SPL methods. Fits BART on the training data, draws
+# from the posterior predictive on the counterfactual test design, and
+# returns posterior summaries of the ITE plus the ACE posterior via the
+# Bayesian bootstrap.
+#
+# Args:
+#   xtr : training design matrix; first column is the binary exposure
+#   ytr : observed outcome on the training units
+#   xte : test design matrix with the exposure flipped (counterfactuals)
+#
+# Depends on dbarts and the project-internal helper aceBB().
+#
+# Returns a named list:
+#   iceavg : posterior-mean ITE per unit
+#   icelw  : 2.5%  posterior quantile of the per-unit posterior predictive
+#   icehi  : 97.5% posterior quantile of the per-unit posterior predictive
+#   ace_pd : ACE posterior draws via the Bayesian bootstrap
+
 bartalone<-function(xtr,ytr,xte){
   
   bartps<-dbarts::bart(x.train=xtr,y.train=ytr,x.test=xte)

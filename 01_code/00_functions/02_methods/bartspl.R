@@ -1,22 +1,55 @@
-# This function extends BART+SPL of Nethery et al. (2019) and allows usage of SBART+SPL of Maßmann (2026)
+# BART+SPL / SBART+SPL for Continuous Outcomes
+# ------------------------------------------------------
+# Extends Nethery et al. (2019)'s BART+SPL to allow SoftBART, DART, and
+# Smooth BART in the region of overlap (RO), with a restricted cubic
+# spline (RCS) extrapolation in the region of non-overlap (RN). Returns
+# the posterior of the average causal effect (ACE) and per-unit ITE
+# summaries.
+#
+# Input data layout (datall):
+#   col 1         : observed outcome (Yobs)
+#   col 2         : binary exposure indicator (x)
+#   col 3         : propensity score (ps) - basis of the RO/RN split
+#   col 4 onwards : additional covariates included in both fits
+# RO is the 0/1 overlap indicator from pw_overlap(), aligned with datall.
+#
+# Args:
+#   datall           : data.frame in the layout above
+#   RO               : 0/1 overlap indicator, length nrow(datall)
+#   nburn, nsamp     : MCMC burn-in and stored draws (default 10000, 5000)
+#   bart_model       : "dbarts" | "sbart" | "dart" | "smooth_bart"
+#   softbart_sampler : TRUE for any SoftBart-family model
+#                      (sbart / dart / smooth_bart)
+#   n_forest         : number of SoftBart chains run in parallel (default 4)
+#   var_infl         : variance inflation for the RN spline extrapolation
+#                      when softbart_sampler = TRUE (default 0)
+#   tau_rate_dart    : only used for "bart_model=dart". large bandwidth control
+#											 param for splitting if using DART instead of SBART
+#   probs.rcs.ps     : knot quantiles for the PS spline basis 
+#   probs.rcs.Y      : knot quantiles for the Y  spline basis 
+#
+# Depends on the project-internal helpers preprocess_df(),
+# quantile_normalize_bart(), normalize_bart(), unnormalize_bart(),
+# and aceBB(), and on the packages dbarts, SoftBart, Hmisc, MASS, invgamma.
+#
+# Returns a list with:
+#   ace_pd          : posterior draws of the ACE (length nsamp)
+#   delta_star_save : nsamp x n matrix of ITE draws
+#   ice_mean/median/sd/lw/up : column-wise summaries of delta_star_save
+#                              (lw, up = 2.5% and 97.5% quantiles)
+#   share_NA        : share of NA cells in delta_star_save
 
 bartspl<-function(datall,RO,
-                  nburn=10000, # burn-in MCMCs
-                  nsamp=5000, # sampled MCMCs
-                  bart_model="dbarts", # choose from: "dbarts", "sbart", "dart", "smooth_bart
-                  softbart_sampler=FALSE, # choose TRUE if bart_model =  "sbart" or "dart" or "smooth_bart"
-                  n_forest=4, # number of separate chains
-                  var_infl = 0, # no variance inflation in sbart and dart
-                  tau_rate_dart=1000000000000000000, # to make SoftBART to DART, bandwidth tau -> 0
-									probs.rcs.ps=c(.1,.25,.5,.75,.9), # for prop.score. default as in Nethery et al. (2019): c(.1,.25,.5,.75,.9) - 5 knots
-									probs.rcs.Y=c(.2,.4,.6,.8) # for Y1 and Y0. default as in Nethery et al. (2019): c(.1,.25,.5,.75,.9) - 4 knots
+                  nburn=10000, 
+                  nsamp=5000, 
+                  bart_model="dbarts", 
+                  softbart_sampler=FALSE, 
+                  n_forest=4, 
+                  var_infl = 0, 
+                  tau_rate_dart=1e+18,  
+									probs.rcs.ps=c(.1,.25,.5,.75,.9), 
+									probs.rcs.Y=c(.2,.4,.6,.8) 
                   ){
-  
-  ## this function implements BART+SPL and SBART+SPL method (for continuous outcomes)
-  ## first column in datall should be the observed outcome variable
-  ## second column should be the binary exposure indicator
-  ## third variable should be the PS or confounder on which to base the non-overlap
-  ## any other variables to be included in the model are in the fourth column and beyond
   
   
   #### prepare datasets ####
@@ -61,7 +94,7 @@ bartspl<-function(datall,RO,
   
   # MakeForest function for SBART/DART/SmoothBART models
   # Default specs for sbart model
-  sb_forest <- function(tau_rate_sb=10, # for dart: tau_rate_dart
+  sb_forest <- function(tau_rate_sb=10, 
   											alpha_sb=1, # for smooth bart: ncol(datov_scale[, !(colnames(datov_scale) == "Yobs")])
   											update_tau_sb = TRUE, # for dart: FALSE
   											update_tau_mean_sb = TRUE, # for dart: FALSE
@@ -326,8 +359,8 @@ bartspl<-function(datall,RO,
     #### 4. if we're past burn-in, save the output ####
     
     if (i<=nburn){
-    	delta_star_burn[(nburn),which(RO==1)]<-c(delta)
-    	delta_star_burn[(nburn),which(RO==0)]<-delta_star
+    	delta_star_burn[(i),which(RO==1)]<-c(delta)
+    	delta_star_burn[(i),which(RO==0)]<-delta_star
     }
     
     if (i>nburn){
@@ -343,9 +376,9 @@ bartspl<-function(datall,RO,
   
   
   return(list(ace_pd=ace_pd,
-  						delta_star_save=delta_star_save, # original posterior ITE estimates
-              ice_mean=apply(delta_star_save,2,mean, na.rm=T), # posterior mean
-  						ice_median=apply(delta_star_save,2,median, na.rm=T), # # posterior median
+  						delta_star_save=delta_star_save, 
+              ice_mean=apply(delta_star_save,2,mean, na.rm=T), 
+  						ice_median=apply(delta_star_save,2,median, na.rm=T), 
   						ice_sd=apply(delta_star_save,2,sd, na.rm=T),
               ice_lw=apply(delta_star_save,2,quantile,probs=.025, na.rm=T),
               ice_up=apply(delta_star_save,2,quantile,probs=.975, na.rm=T),

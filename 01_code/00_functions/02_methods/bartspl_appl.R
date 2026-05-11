@@ -1,10 +1,41 @@
+# BART+SPL for the Empirical Application
+# ------------------------------------------------
+# Original implementation as in Nethery et al. (2019).
+# dbarts-only counterpart to bartspl(): plain BART in the region of
+# overlap (RO) plus a restricted cubic spline (RCS) extrapolation in the
+# region of non-overlap (RN). Serves as the BART baseline against which
+# sbartspl() is compared on the application data. The spline design
+# matrices are quantile-normalised (matching sbartspl()) but without the
+# singularity-check / jitter step.
+#
+# Input data layout (datall): same as bartspl() / sbartspl():
+#   col 1         : observed outcome (Yobs)
+#   col 2         : binary exposure indicator (x)
+#   col 3         : propensity score (ps) - basis of the RO/RN split
+#   col 4 onwards : additional covariates included in both fits
+# RO is the 0/1 overlap indicator from pw_overlap(), aligned with datall.
+#
+# Args:
+#   datall       : data.frame in the layout above
+#   RO           : 0/1 overlap indicator, length nrow(datall)
+#   nburn, nsamp : MCMC burn-in and stored draws (default 10000, 5000)
+#
+# Knot placements are hardcoded:
+#   ps spline : quantiles (.1, .33, .66, .9)
+#   Y  spline : quantiles (.2, .4,  .6,  .8)
+#
+# Depends on the project-internal helpers quantile_normalize_bart() and
+# aceBB(), and on dbarts, Hmisc, MASS, MCMCpack.
+#
+# Returns a named list:
+#   ace_pd   : posterior draws of the ACE (length nsamp)
+#   ice_mean : column-wise posterior mean of the ITE draws
+#   icel     : 2.5%  column-wise quantile
+#   iceu     : 97.5% column-wise quantile
+
+
 bartspl_appl<-function(datall,RO,nburn=10000,nsamp=5000){
 	
-	## this function implements BART+SPL method (for continuous outcomes)
-	## first column in datall should be the observed outcome variable
-	## second column should be the binary exposure indicator
-	## third variable should be the PS or confounder on which to base the non-overlap
-	## any other variables to be included in the model are in the fourth column and beyond
 	
 	names(datall)[1:3]<-c('Yobs','x','ps')
 	if (ncol(datall)>3) names(datall)[4:ncol(datall)]<-paste('u',1:(ncol(datall)-3),sep='')

@@ -1,17 +1,48 @@
-# SBART+SPL function for application results
+# SBART+SPL for the Empirical Application
+# -------------------------------------------------
+# Specialised SBART-only counterpart to bartspl(): SoftBART in the region
+# of overlap (RO) plus a restricted cubic spline (RCS) extrapolation in
+# the region of non-overlap (RN). Differs from bartspl() in two ways:
+#   - no `bart_model` switch (always SBART, always softbart_sampler=TRUE);
+#   - the spline design matrices are quantile-normalised and singular
+#     columns are jittered with tiny Gaussian noise to keep the
+#     posterior of (beta, sigma^2) well-defined on real application data.
+# nburn and nsamp are total budgets and are divided evenly across the
+# n_forest chains.
+#
+# Input data layout (datall):
+#   col 1         : observed outcome (Yobs)
+#   col 2         : binary exposure indicator (x)
+#   col 3         : propensity score (ps) - basis of the RO/RN split
+#   col 4 onwards : additional covariates included in both fits
+# RO is the 0/1 overlap indicator from pw_overlap(), aligned with datall.
+#
+# Args:
+#   datall       : data.frame in the layout above
+#   RO           : 0/1 overlap indicator, length nrow(datall)
+#   nburn, nsamp : total MCMC budgets, split across chains (10000, 5000)
+#   var_infl     : variance inflation for the RN spline extrapolation
+#   n_forest     : number of parallel SBART chains (default 4)
+#   probs.rcs.ps : knot quantiles for the PS spline basis (default 4 knots)
+#   probs.rcs.Y  : knot quantiles for the Y  spline basis (default 4 knots)
+#
+# Depends on the project-internal helpers preprocess_df(),
+# quantile_normalize_bart(), normalize_bart(), unnormalize_bart(),
+# and aceBB(), and on SoftBart, Hmisc, MASS, MCMCpack.
+#
+# Returns an (unnamed) list, positionally:
+#   [[1]] ace_pd : posterior draws of the ACE (length nsamp / n_forest)
+#   [[2]] ice_mean : column-wise posterior mean of the ITE draws
+#   [[3]] ice_lw   : 2.5%  column-wise quantile
+#   [[4]] ice_up   : 97.5% column-wise quantile
 
 sbartspl<-function(datall,RO,nburn=10000,nsamp=5000, 
-									 var_infl=0, # no variance inflation within non-overlap region
-									 n_forest=4, # number of separate/parallel chains
-									 probs.rcs.ps=c(.1,.33,.66,.9), # knots for restriced cubic splines for ps
-									 probs.rcs.Y=c(.2,.4,.6,.8) # knots for restriced cubic splines for Y
+									 var_infl=0, 
+									 n_forest=4, 
+									 probs.rcs.ps=c(.1,.33,.66,.9), 
+									 probs.rcs.Y=c(.2,.4,.6,.8) 
 ){
 	
-	## this function implements SBART+SPL method (for continuous outcomes) based on BART+SPL (Nethery et al. 2019)
-	## first column in datall should be the observed outcome variable
-	## second column should be the binary exposure indicator
-	## third variable should be the PS or confounder on which to base the non-overlap
-	## any other variables to be included in the model are in the fourth column and beyond
 	
 	names(datall)[1:3]<-c('Yobs','x','ps')
 	if (ncol(datall)>3) names(datall)[4:ncol(datall)]<-paste('u',1:(ncol(datall)-3),sep='')

@@ -1,3 +1,23 @@
+# SoftBART-Alone Baseline for the Average Causal Effect
+# -----------------------------------------------------
+# SoftBART counterpart to bartalone(): plain SoftBART (no spline
+# extrapolation) used as the SBART-side baseline against the BART+SPL /
+# SBART+SPL methods. Same fit-and-summarise pipeline as bartalone(),
+# just with SoftBart::softbart() in place of dbarts::bart().
+#
+# Args:
+#   xtr : training design matrix; first column is the binary exposure
+#   ytr : observed outcome on the training units
+#   xte : test design matrix with the exposure flipped (counterfactuals)
+#
+# Depends on SoftBart and the project-internal helper aceBB().
+#
+# Returns a named list:
+#   iceavg : posterior-mean ITE per unit
+#   icelw  : 2.5%  posterior quantile of the per-unit posterior predictive
+#   icehi  : 97.5% posterior quantile of the per-unit posterior predictive
+#   ace_pd : ACE posterior draws via the Bayesian bootstrap
+
 softbartalone<-function(xtr,ytr,xte){
 	
 	bartps<-SoftBart::softbart(X=xtr,Y=ytr,X_test=xte)

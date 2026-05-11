@@ -1,3 +1,29 @@
+# BART+SPL with Tunable Variance Inflation - for the Illustration
+# ---------------------------------------------------------------
+# Identical to bartspl() except the dbarts-path variance-inflation
+# multiplier (hardcoded as 10 in bartspl()) is exposed as an argument
+# `var_infl_param`, so the figure illustrating its effect on the RN
+# extrapolation can be produced by sweeping over its value. All other
+# behaviour - sampler choice, RO/RN split, spline extrapolation,
+# Bayesian bootstrap - is unchanged.
+#
+# Input data layout (datall): same as bartspl():
+#   col 1         : observed outcome (Yobs)
+#   col 2         : binary exposure indicator (x)
+#   col 3         : propensity score (ps) - basis of the RO/RN split
+#   col 4 onwards : additional covariates included in both fits
+# RO is the 0/1 overlap indicator from pw_overlap(), aligned with datall.
+#
+# Args (only those that differ from bartspl()):
+#   var_infl_param : multiplier on ROdist * (max(delta) - min(delta))
+#                    in the dbarts-path RN posterior predictive sd
+#                    (default 10, matching Nethery et al. 2019).
+#                    The softbart-path uses `var_infl` as in bartspl().
+# All other arguments behave exactly as in bartspl().
+#
+# Returns the same list as bartspl().
+
+
 bartspl_vp<-function(datall,RO,
 									nburn=10000, # normally 10000
 									nsamp=5000, 
@@ -11,11 +37,6 @@ bartspl_vp<-function(datall,RO,
 									probs.rcs.Y=c(.2,.4,.6,.8) # for Y1 and Y0. default as in nethery: c(.1,.25,.5,.75,.9) - 4 knots
 ){
 	
-	## this function implements BART+SPL method (for continuous outcomes)
-	## first column in datall should be the observed outcome variable
-	## second column should be the binary exposure indicator
-	## third variable should be the PS or confounder on which to base the non-overlap
-	## any other variables to be included in the model are in the fourth column and beyond
 	
 	
 	#### prepare datasets ####
