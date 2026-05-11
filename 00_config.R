@@ -26,7 +26,7 @@ pacman::p_load(
 	tidyverse,   # data wrangling + ggplot2
 	brms,        # Bayesian regression via Stan
 	invgamma,    # inverse-gamma distribution
-	nnet.        # single-hidden-layer neural network
+	nnet        # single-hidden-layer neural network
 )
 
 # ---- GitHub-only packages ----
