@@ -100,8 +100,7 @@ This implementation extends the BART+SPL method from:
 > Nethery, R. C., Mealli, F., & Dominici, F. (2019). 
 > Estimating population average causal effects in the presence of 
 > non-overlap. *Annals of Applied Statistics*, 13(2), 1242-1267.
->
-> Code of the original BART+SPL approach can be found [here](https://github.com/rachelnethery/overlap). If you use the code in this repo, please cite them as well.
+Code of the original BART+SPL approach can be found [here](https://github.com/rachelnethery/overlap). If you use the code in this repo, please cite them as well.
 
 
 
