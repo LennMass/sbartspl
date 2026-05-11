@@ -1,4 +1,4 @@
-### this implements DART+SPL as we have tau_rate_sb=10 in code line 59! Gives improper traceplot chains
+# SBART+SPL function for application results
 
 sbartspl<-function(datall,RO,nburn=10000,nsamp=5000, 
 									 var_infl=0, # no variance inflation within non-overlap region
@@ -7,7 +7,7 @@ sbartspl<-function(datall,RO,nburn=10000,nsamp=5000,
 									 probs.rcs.Y=c(.2,.4,.6,.8) # knots for restriced cubic splines for Y
 ){
 	
-	## this function implements BART+SPL method (for continuous outcomes)
+	## this function implements SBART+SPL method (for continuous outcomes) based in BART+SPL (Nethery et al. 2019)
 	## first column in datall should be the observed outcome variable
 	## second column should be the binary exposure indicator
 	## third variable should be the PS or confounder on which to base the non-overlap
@@ -56,12 +56,12 @@ sbartspl<-function(datall,RO,nburn=10000,nsamp=5000,
 	
 	#### Initialize MakeForest function for SBART model
 	# Default specs for sbart model
-	sb_forest <- function(tau_rate_sb=10, # for dart: tau_rate_dart
-												alpha_sb=1, # for smooth bart: ncol(datov_scale[, !(colnames(datov_scale) == "Yobs")])
-												update_tau_sb = TRUE, # for dart: FALSE
-												update_tau_mean_sb = TRUE, # for dart: FALSE
-												update_s_sb = TRUE, # for smooth bart: FALSE
-												update_alpha_sb = TRUE # for smooth bart: FALSE
+	sb_forest <- function(tau_rate_sb=10,
+						  alpha_sb=1, # for smooth bart: ncol(datov_scale[, !(colnames(datov_scale) == "Yobs")])
+						  update_tau_sb = TRUE, # for dart: FALSE
+						  update_tau_mean_sb = TRUE, # for dart: FALSE
+						  update_s_sb = TRUE, # for smooth bart: FALSE
+						  update_alpha_sb = TRUE # for smooth bart: FALSE
 	){
 		SoftBart::MakeForest(hypers=SoftBart::Hypers(Y=datov_scale$Yobs,
 																								 X=datov_scale[, !(colnames(datov_scale) == "Yobs")], # design matrix X normalized between 0 and 1
@@ -84,8 +84,6 @@ sbartspl<-function(datall,RO,nburn=10000,nsamp=5000,
 	sb_chain3 <- sb_forest()
 	sb_chain4 <- sb_forest()
 	
-	## initialize the dbarts sampler to implement BART in the range of overlap ##
-	#dbfit<-dbarts(formula=Yobs~.,data=datov,test=datovtest[,2:ncol(datovtest)])
 	
 	## hyperparameters for the spline ##
 	# Restricted Cubic Spline Design Matrix
@@ -111,11 +109,7 @@ sbartspl<-function(datall,RO,nburn=10000,nsamp=5000,
 	sigma_spl0<-1
 	
 	## matrices to store posterior samples ##
-	# delta_save<-matrix(NA,nrow=nsamp,ncol=nrow(datov))
 	delta_star_save<-matrix(NA,nrow=nsamp,ncol=nrow(datall))
-	# sigma_bart_save<-rep(NA,nsamp)
-	# beta_save<-matrix(NA,nrow=nsamp,ncol=p_spl)
-	# sigma_spl_save<-rep(NA,nsamp)
 	
 	# storing matrices for the sampler
 	s_temp_test <- matrix(NaN, ncol=n_forest, nrow=nrow(datovtest)) 
@@ -129,8 +123,6 @@ sbartspl<-function(datall,RO,nburn=10000,nsamp=5000,
 		## 1. run the SoftBART sampler once and take a sample from the SoftBART ppd ##
 		##############################################################################
 		
-		#temp<-dbfit$run(numBurnIn=0,numSamples=1)
-		#ppd_test<-rnorm(n=length(temp$test),mean=temp$test,sd=temp$sigma)
 		
 		# for softbart_sampler
 		# chain 1
@@ -179,7 +171,6 @@ sbartspl<-function(datall,RO,nburn=10000,nsamp=5000,
 		delta_sp<-delta[sp_ind,]
 		
 		## update Y1s ##
-		#foosp<-temp$test[sp_ind]
 		foosp<-s_temp_test[sp_ind]
 		Y1s[which(datov_sp$x==0)]<-foosp[which(datov_sp$x==0)]
 		Y0s[which(datov_sp$x==1)]<-foosp[which(datov_sp$x==1)]
@@ -249,7 +240,6 @@ sbartspl<-function(datall,RO,nburn=10000,nsamp=5000,
 				X_spl_star<-as.matrix(cbind(1,X_spl_star))
 			}
 			Eppd<-X_spl_star%*%beta1
-			#delta_star[which(datno$x==1)]<-rnorm(n=nrow(datno1),mean=Eppd,sd=sqrt(sigma_spl1+ROdist[which(datno$x==1)]*10*(max(delta)-min(delta))))
 			delta_star[which(datno$x==1)]<-rnorm(n=nrow(datno1),mean=Eppd,sd=sqrt(sigma_spl1+ROdist[which(datno$x==1)]*var_infl*(max(delta)-min(delta))))
 		}
 		
