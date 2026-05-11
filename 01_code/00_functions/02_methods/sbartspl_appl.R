@@ -7,7 +7,7 @@ sbartspl<-function(datall,RO,nburn=10000,nsamp=5000,
 									 probs.rcs.Y=c(.2,.4,.6,.8) # knots for restriced cubic splines for Y
 ){
 	
-	## this function implements SBART+SPL method (for continuous outcomes) based in BART+SPL (Nethery et al. 2019)
+	## this function implements SBART+SPL method (for continuous outcomes) based on BART+SPL (Nethery et al. 2019)
 	## first column in datall should be the observed outcome variable
 	## second column should be the binary exposure indicator
 	## third variable should be the PS or confounder on which to base the non-overlap
