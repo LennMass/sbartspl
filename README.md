@@ -1,6 +1,6 @@
 # SBART+SPL for PATE
 
-This repository contains code for the project:
+This repository contains replicaton code for the project:
 
 **"Estimating PATE under positivity violations: SBART+SPL for
 high-dimensional covariates"**
