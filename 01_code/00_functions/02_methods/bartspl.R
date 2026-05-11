@@ -345,8 +345,7 @@ bartspl<-function(datall,RO,
   ## use the Bayesian bootstrap to get ACE posterior ##
   ace_pd<-apply(delta_star_save,1,aceBB)
   
-  ## use the Hierarchical Bayesian Bootstrap
-  #ace_pd_hbb <- apply()
+  
   
   return(list(ace_pd=ace_pd,
   						delta_star_save=delta_star_save, # original posterior ITE estimates
